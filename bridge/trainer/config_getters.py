@@ -1,14 +1,13 @@
 import torch
 from ..models import *
 from ..data.two_dim import two_dim_ds
-from ..data.stackedmnist import Stacked_MNIST
-from ..data.emnist import EMNIST
+from ..data.mnist import MNIST
+#from ..data.emnist import EMNIST
 from ..data.celeba  import CelebA
 from .plotters import TwoDPlotter, ImPlotter
 from torch.utils.data import TensorDataset
 import torchvision.transforms as transforms
 import os
-from .logger import CSVLogger, NeptuneLogger, Logger
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 cmp = lambda x: transforms.Compose([*x])
@@ -25,11 +24,6 @@ def get_plotter(runner, args):
 
 MODEL = 'Model'
 BASIC_MODEL = 'Basic'
-CONV_MODEL = "Conv"
-NCSN_MODEL = 'NCSN'
-NCSNv1_MODEL = 'NCSNv1'
-VGG_MODEL = 'VGG'
-DDPM_MODEL = 'DDPM'
 UNET_MODEL = 'UNET'
 
 
@@ -214,30 +208,3 @@ def get_datasets(args):
 
     return init_ds, final_ds, mean_final, var_final
 
-
-# Logger
-#--------------------------------------------------------------------------------
-
-LOGGER = 'LOGGER'
-LOGGER_PARAMS = 'LOGGER_PARAMS'
-
-CSV_TAG = 'CSV'
-NEPTUNE_TAG = 'NEPTUNE'
-MLFLOW_TAG = 'MLFLOW'
-NOLOG_TAG = 'NONE'
-
-def get_logger(args, name):
-    logger_tag = getattr(args, LOGGER)
-
-    if logger_tag == CSV_TAG:
-        kwargs = {'directory': args.CSV_log_dir, 'name': name}
-        return CSVLogger(**kwargs)
-
-    if logger_tag == NEPTUNE_TAG:
-        kwargs = {'project_name': args.NEPTUNE_PROJECT, 
-                   'api_key': args.NEPTUNE_TOKEN, 
-                   'save_folder':'./'}
-        return NeptuneLogger(**kwargs)
-
-    if logger_tag == NOLOG_TAG:
-        return Logger()

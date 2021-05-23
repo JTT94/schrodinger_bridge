@@ -18,24 +18,29 @@ class IPFStep:
         *,
         model,
         forward_diffusion,
-        backward_diffusion
-        data,
+        backward_diffusion,
+        data_loader,
         batch_size,
         lr,
         ema_rate,
         log_interval,
         save_interval,
+        cache_loader = False,
+        num_iter = 1000,
         weight_decay=0.0,
         lr_anneal_steps = 0,
         resume_checkpoint = False,
         forward_model = None,
     ):
         self.model = model
+        self.num_steps = forward_diffusion.num_steps
         self.forward_diffusion = forward_diffusion
         self.backward_diffusion = backward_diffusion
-        self.data = data
+        self.data_loader = data_loader
+        self.num_iter
         self.lr_anneal_steps = lr_anneal_steps
-        self.batch_size = batch_size
+        self.batch_size = batch_sizes
+        self.cache_loader = cache_loader
         self.lr = lr
         self.ema_rate = (
             [ema_rate]
@@ -80,8 +85,8 @@ class IPFStep:
             )
         else:
             if dist.get_world_size() > 1:
-            self.use_ddp = False
-            self.ddp_model = self.model
+                self.use_ddp = False
+                self.ddp_model = self.model
 
     def _load_and_sync_parameters(self):
         resume_checkpoint = find_resume_checkpoint() or self.resume_checkpoint
@@ -125,11 +130,11 @@ class IPFStep:
 
     def run_loop(self):
         while (
-            not self.lr_anneal_steps
-            or self.step + self.resume_step < self.lr_anneal_steps
+            self.step + self.resume_step < self.num_iter
         ):
-            batch, steps, cond = next(self.data)
-            self.run_step(batch, steps, cond)
+            init_samples, labels = next(self.data_loader)
+            x, target, steps, labels = self.forward_diffusion.compute_loss_terms(init_samples, labels)
+            self.run_step(x, target, steps, labels)
             if self.step % self.save_interval == 0:
                 self.save()
             self.step += 1
@@ -137,15 +142,16 @@ class IPFStep:
         if (self.step - 1) % self.save_interval != 0:
             self.save()
 
-    def run_step(self, batch, steps, cond):
-        eval_steps = self.nit - 1 - steps
-        self.forward_backward(batch, cond)
+    def run_step(self, x, target, steps, labels):
+        eval_steps = self.num_steps - 1 - steps
+        self.forward_backward(x, target, eval_steps, labels)
         self.optimize_step()
         self.log_step()
 
-    def forward_backward(self, batch, cond):
+    def forward_backward(self, x, target, eval_steps, labels):
         zero_grad(self.master_params)
-        pred = self.model(batch, eval_steps, labels)
+        pred = self.model(x, eval_steps, labels)
+        loss = F.mse_loss(pred, target)
         loss.backward()
 
 

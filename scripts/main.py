@@ -1,7 +1,11 @@
+import hydra
+import os,sys
 
-from ..trainer.config_getters import get_model, get_datasets
-from ..trainer.train_util import IPFStep
-from ..diffusions.fast_sampler import FastSampler
+sys.path.append('..')
+from bridge.data import repeater
+from bridge.trainer.config_getters import get_model, get_datasets
+from bridge.trainer.train_util import IPFStep
+from bridge.diffusions.fast_sampler import FastSampler
 
 
 @hydra.main(config_path="../conf", config_name="config")
@@ -33,7 +37,7 @@ def main(args):
 
     IPFStep(model,
             forward_diffusion,
-            backward_diffusion
+            backward_diffusion,
             data_loader,
             batch_size = args.batch_size,
             lr = self.lr,

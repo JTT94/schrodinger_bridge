@@ -10,7 +10,7 @@ from tqdm import tqdm
 from torchvision.utils import save_image
 
 
-class Stacked_MNIST(Dataset):
+class MNIST(Dataset):
     def __init__(self, root="./dataset", load=True, source_root=None, imageSize=28,
                  train=True, num_channels=3, device='cpu'):  # load=True means loading the dataset from existed files.
         super(Stacked_MNIST, self).__init__()
