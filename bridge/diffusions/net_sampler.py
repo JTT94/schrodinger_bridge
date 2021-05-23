@@ -24,7 +24,7 @@ class NetSampler(Diffusion):
         self.time_sampler = time_sampler
         
         self.num_steps = num_steps # num diffusion steps
-        self.d = shape # shape of object to diffuse
+        self.shape = shape # shape of object to diffuse
         self.gammas = gammas.float() # schedule          
            
 
@@ -38,7 +38,7 @@ class NetSampler(Diffusion):
     
     def compute_loss_terms(self, init_samples, labels, t_batch=None, net=None):
         with torch.no_grad():
-            return forward(init_samples, labels, t_batch, net)
+            return self.forward(init_samples, labels, t_batch, net)
 
     def sample(self, init_samples, labels, t_batch=None, net=None):
         with torch.no_grad():
@@ -63,8 +63,8 @@ class NetSampler(Diffusion):
         else:
             labels_expanded = None
         
-        x_tot = torch.Tensor(N, t_batch, *self.d).to(x.device)
-        out = torch.Tensor(N, t_batch, *self.d).to(x.device)
+        x_tot = torch.Tensor(N, t_batch, *self.shape).to(x.device)
+        out = torch.Tensor(N, t_batch, *self.shape).to(x.device)
         store_steps = self.steps
         steps_expanded = steps[:, levels,:]
         num_iter = self.num_steps

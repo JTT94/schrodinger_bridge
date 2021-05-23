@@ -212,8 +212,9 @@ class UNetModel(nn.Module):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
+        y = None if torch.any(y<0) else y
         timesteps = timesteps.squeeze()
-        assert (y is not None) == (
+        assert ((y is not None)) == (
             self.num_classes>0
         ), "must specify y if and only if the model is class-conditional"
 

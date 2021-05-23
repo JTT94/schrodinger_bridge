@@ -28,4 +28,7 @@ plot_level: 2
 paths: 
   experiments_dir_name: experiments
 
-  
+weight_decay: 0.0
+save_interval: 5000
+
+out_dir: output

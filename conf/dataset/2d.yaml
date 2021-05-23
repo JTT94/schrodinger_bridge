@@ -9,7 +9,7 @@ Dataset_transfer: 2d
 data_transfer: circle
 
 adaptive_mean: False
-final_adaptive: True
+final_adaptive: False
 mean_final: torch.tensor([0.,0.])
 var_final: 1.*torch.tensor([1., 1.])
 

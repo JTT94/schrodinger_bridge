@@ -4,68 +4,56 @@ from tqdm import tqdm
 import time
 
 class CacheLoader(Dataset):
-    def __init__(self, fb, 
+    def __init__(self, 
                  sample_net, 
-                 dataloader_b, 
+                 data_loader, 
                  num_batches, 
-                 langevin, 
-                 n,  
-                 mean, std, 
-                 batch_size, device='cpu', 
-                 store_gpu=True,
-                 score_matching=False,
-                 dataloader_f=None,
-                 transfer=False): 
+                 forward_diffusion, 
+                 batch_size, 
+                 device='cpu', 
+                 ): 
 
         super().__init__()
-        start = time.time()
-        shape = langevin.d
-        num_steps = langevin.num_steps
+        shape = forward_diffusion.shape
+        num_steps = forward_diffusion.num_steps
+        self.forward_model = sample_net
+        self.forward_diffusion = forward_diffusion
         self.data = torch.zeros((num_batches, batch_size*num_steps, 2, *shape)).to(device)#.cpu()
         self.steps_data = torch.zeros((num_batches, batch_size*num_steps,1), dtype=torch.long).to(device)#.cpu() # steps
+        self.labels = torch.zeros((num_batches, batch_size*num_steps,1), dtype=torch.long).to(device)#.cpu() # steps
+        self.classes = False
         with torch.no_grad():
             for b in range(num_batches):
-                if fb=='backward':
-                    batch = next(dataloader_b)[0]
-                    batch = batch.to(device)
-                elif fb =='forward' and transfer:
-                    batch = next(dataloader_f)[0]
-                    batch = batch.to(device)
-                else:
-                    batch = mean + std*torch.randn((batch_size, *shape), device=device)
-                
-                if (n == 1) & (fb=='backward'):
-                    x, out, steps_expanded = langevin.record_init_langevin(batch)
-                else:
-                    x, out, steps_expanded = langevin.record_langevin_seq(sample_net, batch, ipf_it=n)
-                
-                # store x, out
+                batch, labels = next(data_loader)
+                x, target, steps, labels = self.forward_diffusion.compute_loss_terms(batch, labels, net=self.forward_model)
                 x = x.unsqueeze(2)
-                out = out.unsqueeze(2)
-                batch_data = torch.cat((x, out), dim=2)
+                target = target.unsqueeze(2)
+                batch_data = torch.cat((x, target), dim=2)
                 flat_data = batch_data.flatten(start_dim=0, end_dim=1)#.to('cpu')
                 self.data[b] = flat_data #torch.cat((self.data, flat_data),0)
                 
                 # store steps
-                flat_steps = steps_expanded.flatten(start_dim=0, end_dim=1)#.to('cpu')
+                flat_steps = steps.flatten(start_dim=0, end_dim=1)#.to('cpu')
                 self.steps_data[b] = flat_steps # = torch.cat((self.steps_data, flat_steps),0)
+
+                if labels is not None:
+                    self.classes = True
+                    labels_flat = labels.flatten(start_dim=0, end_dim=1)
+                    self.labels[b] = labels_flat
         
         self.data = self.data.flatten(start_dim=0, end_dim=1)
         self.steps_data = self.steps_data.flatten(start_dim=0, end_dim=1)
-        
-        if store_gpu:
-            self.steps_data = self.steps_data.to(device)
-            self.data = self.data.to(device)
-        stop = time.time()
-        print('Cache size: {0}'.format(self.data.shape))
-        print("Load time: {0}".format(stop-start))
     
     def __getitem__(self, index):
         item = self.data[index]
         x = item[0]
         out = item[1]
         steps = self.steps_data[index]
-        return x, out, steps
+        if self.classes:
+            labels = self.labels[index]
+        else:
+            labels = -1
+        return x, out, steps, labels
 
     def __len__(self):
         return self.data.shape[0]

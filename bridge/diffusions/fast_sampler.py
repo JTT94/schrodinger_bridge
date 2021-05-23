@@ -19,7 +19,7 @@ class FastSampler(Diffusion):
         self.var_final = var_final.to(self.device)
         
         self.num_steps = num_steps # num diffusion steps
-        self.d = shape # shape of object to diffuse
+        self.shape= shape # shape of object to diffuse
         self.gammas = gammas.float() # schedule          
            
 
@@ -28,14 +28,14 @@ class FastSampler(Diffusion):
         self.steps = torch.arange(self.num_steps).to(self.device)
         self.time = torch.cumsum(self.gammas,0).to(self.device).float()
 
-        gammas_expanded = torch.ones(self.num_steps,*self.d,device=device)
+        gammas_expanded = torch.ones(self.num_steps,*self.shape,device=device)
         for k in range(num_steps):
             gammas_expanded[k] = gammas[k].float()  
         self.gammas_expanded = gammas_expanded
 
         # compute sampling quantities Ornstein-Ulhenbeck (if fast_sampling=True)
-        a = torch.zeros(self.num_steps,*self.d,device=device)
-        b = torch.zeros(self.num_steps,*self.d,device=device)
+        a = torch.zeros(self.num_steps,*self.shape,device=device)
+        b = torch.zeros(self.num_steps,*self.shape,device=device)
 
         ak = 1
         bk = 0
@@ -76,8 +76,8 @@ class FastSampler(Diffusion):
             labels_expanded = None
 
 
-        x_tot = torch.Tensor(N, *self.d).to(self.device)  
-        out = torch.Tensor(N, *self.d).to(self.device)
+        x_tot = torch.Tensor(N, *self.shape).to(self.device)  
+        out = torch.Tensor(N, *self.shape).to(self.device)
         steps_expanded = steps[levels]
         
         x0 = init_samples

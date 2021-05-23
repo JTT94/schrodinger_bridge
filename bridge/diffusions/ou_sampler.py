@@ -28,7 +28,7 @@ class OUSampler(Diffusion):
         self.var_final = var_final
         
         self.num_steps = num_steps # num diffusion steps
-        self.d = shape # shape of object to diffuse
+        self.shape = shape # shape of object to diffuse
         self.gammas = gammas.float() # schedule          
            
 
@@ -72,8 +72,8 @@ class OUSampler(Diffusion):
             labels_expanded = None
 
 
-        x_tot = torch.Tensor(N, t_batch, *self.d).to(x.device)
-        out = torch.Tensor(N, t_batch, *self.d).to(x.device)
+        x_tot = torch.Tensor(N, t_batch, *self.shape).to(x.device)
+        out = torch.Tensor(N, t_batch, *self.shape).to(x.device)
         num_iter = self.num_steps
         steps_expanded = steps[:, levels,:]
         
