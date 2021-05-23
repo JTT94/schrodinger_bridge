@@ -1,8 +1,0 @@
-# @package _global_
-
-Model: NCSN 
-model:
-  spec_norm: false
-  normalization: InstanceNorm++
-  nonlinearity: elu
-  ngf: 32

@@ -9,7 +9,9 @@ from .plotters import TwoDPlotter, ImPlotter
 from torch.utils.data import TensorDataset
 import torchvision.transforms as transforms
 import os
+from bridge.data import repeater
 from torch.utils.data import DataLoader
+import torch.distributed as dist
 from torchvision.datasets import CIFAR10
 cmp = lambda x: transforms.Compose([*x])
 
@@ -244,3 +246,16 @@ def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
         t2 = (i + 1) / num_diffusion_timesteps
         betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
     return np.array(betas)
+
+
+def get_dataloader(args):
+    def worker_init_fn(worker_id):                                                          
+            np.random.seed(np.random.get_state()[1][0] + worker_id + dist.get_rank())
+    kwargs = {"num_workers": args.num_workers, 
+            "pin_memory": args.pin_memory, 
+            "worker_init_fn": worker_init_fn,
+            "drop_last": True}
+    init_ds, final_ds, mean_final, var_final = get_datasets(args)
+    data_loader = repeater(DataLoader(init_ds, batch_size=args.batch_size, shuffle=True, **kwargs))
+    data_loader = repeater(data_loader)
+    return data_loader, mean_final, var_final

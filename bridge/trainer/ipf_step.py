@@ -36,6 +36,7 @@ class IPFStep:
         lr_anneal_steps = 0,
         resume_checkpoint = False,
         forward_model = None,
+        out_directory = './'
     ):
         self.model = model
         self.num_steps = forward_diffusion.num_steps
@@ -62,7 +63,8 @@ class IPFStep:
         self.resume_step = 0
         self.global_batch = self.batch_size * dist.get_world_size()
 
-        self.master_params = list(self.model.parameters())
+        self.model_params = list(self.model.parameters())
+        self.master_params = self.model_params
         self.sync_cuda = th.cuda.is_available()
 
         self._load_and_sync_parameters()
@@ -89,7 +91,7 @@ class IPFStep:
                 output_device=dist_util.dev(),
                 broadcast_buffers=False,
                 bucket_cap_mb=128,
-                find_unused_parameters=False,
+                find_unused_parameters=True,
             )
         else:
             if dist.get_world_size() > 1:
@@ -152,8 +154,8 @@ class IPFStep:
             if self.step % self.save_interval == 0:
                 self.save()
             self.step += 1
-            if (dist.get_rank() == 0) & ((self.step) % 100):
-                    pbar.update(self.step)
+            if (dist.get_rank() == 0) & ((self.step) % 100==0):
+                    pbar.update(100)
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
             self.save()
@@ -189,14 +191,14 @@ class IPFStep:
 
 
     def save(self):
-        init_samples, labels = next(self.prior_loader)
-        init_samples = init_samples.to(dist_util.dev())
-        labels = labels.to(dist_util.dev()) if labels is not None else None
-        x = self.backward_diffusion.sample(init_samples, labels, net=self.model).detach().cpu()
-        filename = 'final.png'
-        plt.plot(x[:,-1,0], x[:,-1,1], 'ro')
-        plt.savefig(filename, bbox_inches = 'tight', transparent = True, dpi=200)
-        plt.close()
+        # init_samples, labels = next(self.prior_loader)
+        # init_samples = init_samples.to(dist_util.dev())
+        # labels = labels.to(dist_util.dev()) if labels is not None else None
+        # x = self.backward_diffusion.sample(init_samples, labels, net=self.model).detach().cpu()
+        # filename = 'final.png'
+        # plt.plot(x[:,-1,0], x[:,-1,1], 'ro')
+        # plt.savefig(filename, bbox_inches = 'tight', transparent = True, dpi=200)
+        # plt.close()
 
         def save_checkpoint(rate, params):
 
@@ -252,7 +254,7 @@ def parse_resume_step_from_filename(filename):
 
 
 def get_blob_logdir():
-    return './'
+    return self.out_directory
 
 
 def find_resume_checkpoint():

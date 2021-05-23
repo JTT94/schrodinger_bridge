@@ -89,7 +89,7 @@ class UNetModel(nn.Module):
             linear(time_embed_dim, time_embed_dim),
         )
 
-        if self.num_classes is not None:
+        if (self.num_classes>0):
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
 
         self.input_blocks = nn.ModuleList(
@@ -214,13 +214,13 @@ class UNetModel(nn.Module):
         """
         timesteps = timesteps.squeeze()
         assert (y is not None) == (
-            self.num_classes is not None
+            self.num_classes>0
         ), "must specify y if and only if the model is class-conditional"
 
         hs = []
         emb = self.time_embed(timestep_embedding(timesteps, self.model_channels))
 
-        if self.num_classes is not None:
+        if self.num_classes>0:
             assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
 
@@ -249,7 +249,7 @@ class UNetModel(nn.Module):
         """
         hs = []
         emb = self.time_embed(timestep_embedding(timesteps, self.model_channels))
-        if self.num_classes is not None:
+        if self.num_classes>0:
             assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
         result = dict(down=[], up=[])
