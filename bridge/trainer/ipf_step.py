@@ -2,14 +2,18 @@ import copy
 import functools
 import os
 
+import torch.nn.functional as F
 import blobfile as bf
+import torchvision.utils as vutils
 import numpy as np
 import torch as th
 import torch.distributed as dist
 from torch.nn.parallel.distributed import DistributedDataParallel as DDP
 from torch.optim import AdamW
-
+from ..models.unet.fp16_util import zero_grad
+from tqdm  import tqdm
 from ..utils import dist_util
+import matplotlib.pyplot as plt
 
 
 class IPFStep:
@@ -20,6 +24,7 @@ class IPFStep:
         forward_diffusion,
         backward_diffusion,
         data_loader,
+        prior_loader,
         batch_size,
         lr,
         ema_rate,
@@ -34,14 +39,17 @@ class IPFStep:
     ):
         self.model = model
         self.num_steps = forward_diffusion.num_steps
+        self.prior_loader = prior_loader
         self.forward_diffusion = forward_diffusion
         self.backward_diffusion = backward_diffusion
         self.data_loader = data_loader
-        self.num_iter
+        self.num_iter = num_iter
         self.lr_anneal_steps = lr_anneal_steps
-        self.batch_size = batch_sizes
+        self.batch_size = batch_size
+        self.resume_checkpoint = resume_checkpoint
         self.cache_loader = cache_loader
         self.lr = lr
+        self.weight_decay = weight_decay
         self.ema_rate = (
             [ema_rate]
             if isinstance(ema_rate, float)
@@ -129,18 +137,27 @@ class IPFStep:
             self.opt.load_state_dict(state_dict)
 
     def run_loop(self):
+        if dist.get_rank() == 0:
+            print('Training Loop ..............')
+            pbar = tqdm(total =self.num_iter)
         while (
             self.step + self.resume_step < self.num_iter
         ):
             init_samples, labels = next(self.data_loader)
+            init_samples = init_samples.to(dist_util.dev())
+            labels = labels.to(dist_util.dev()) 
+
             x, target, steps, labels = self.forward_diffusion.compute_loss_terms(init_samples, labels)
             self.run_step(x, target, steps, labels)
             if self.step % self.save_interval == 0:
                 self.save()
             self.step += 1
+            if (dist.get_rank() == 0) & ((self.step) % 100):
+                    pbar.update(self.step)
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
             self.save()
+            
 
     def run_step(self, x, target, steps, labels):
         eval_steps = self.num_steps - 1 - steps
@@ -172,7 +189,17 @@ class IPFStep:
 
 
     def save(self):
+        init_samples, labels = next(self.prior_loader)
+        init_samples = init_samples.to(dist_util.dev())
+        labels = labels.to(dist_util.dev()) if labels is not None else None
+        x = self.backward_diffusion.sample(init_samples, labels, net=self.model).detach().cpu()
+        filename = 'final.png'
+        plt.plot(x[:,-1,0], x[:,-1,1], 'ro')
+        plt.savefig(filename, bbox_inches = 'tight', transparent = True, dpi=200)
+        plt.close()
+
         def save_checkpoint(rate, params):
+
             state_dict = self._master_params_to_state_dict(params)
             if dist.get_rank() == 0:
                 if not rate:
@@ -196,10 +223,6 @@ class IPFStep:
         dist.barrier()
 
     def _master_params_to_state_dict(self, master_params):
-        if self.use_fp16:
-            master_params = unflatten_master_params(
-                self.model.parameters(), master_params
-            )
         state_dict = self.model.state_dict()
         for i, (name, _value) in enumerate(self.model.named_parameters()):
             assert name in state_dict
@@ -208,11 +231,10 @@ class IPFStep:
 
     def _state_dict_to_master_params(self, state_dict):
         params = [state_dict[name] for name, _ in self.model.named_parameters()]
-        if self.use_fp16:
-            return make_master_params(params)
-        else:
-            return params
+        return params
 
+    def log_step(self):
+        return 
 
 def parse_resume_step_from_filename(filename):
     """
@@ -230,7 +252,7 @@ def parse_resume_step_from_filename(filename):
 
 
 def get_blob_logdir():
-    return os.environ.get("DIFFUSION_BLOB_LOGDIR", logger.get_dir())
+    return './'
 
 
 def find_resume_checkpoint():
@@ -260,3 +282,4 @@ def update_ema(target_params, source_params, rate=0.99):
     """
     for targ, src in zip(target_params, source_params):
         targ.detach().mul_(rate).add_(src, alpha=1 - rate)
+

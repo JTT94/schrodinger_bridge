@@ -1,6 +1,7 @@
 
 
 import torch
+from .base import Diffusion
 
 def grad_gauss(x, m, var):
     xout = (x - m) / var
@@ -21,8 +22,6 @@ class NetSampler(Diffusion):
         self.num_classes = num_classes
         self.score_matching = score_matching
         self.time_sampler = time_sampler
-        self.mean_final = mean_final
-        self.var_final = var_final
         
         self.num_steps = num_steps # num diffusion steps
         self.d = shape # shape of object to diffuse
@@ -38,23 +37,22 @@ class NetSampler(Diffusion):
         self.time_sampler = time_sampler
     
     def compute_loss_terms(self, init_samples, labels, t_batch=None, net=None):
-        return forward(init_samples, labels, t_batch, net)
+        with torch.no_grad():
+            return forward(init_samples, labels, t_batch, net)
 
     def sample(self, init_samples, labels, t_batch=None, net=None):
-        x_tot, _, _, _ = self.forward(init_samples, labels, t_batch, net)
+        with torch.no_grad():
+            x_tot, _, _, _ = self.forward(init_samples, labels, t_batch, net)
         return x_tot
 
-    def record_langevin_seq(self, net, init_samples, labels, t_batch=None, ipf_it=0):
+    def forward(self, init_samples, labels, t_batch=None, net=None):
 
         if t_batch is None:
             t_batch = self.num_steps
         if self.time_sampler is not None:
             levels, _ = torch.sort(self.time_sampler.sample(t_batch))
         else: 
-            levels = self.steps
-
-        mean_final = self.mean_final
-        var_final = self.var_final        
+            levels = self.steps  
     
         x = init_samples
         N = x.shape[0]

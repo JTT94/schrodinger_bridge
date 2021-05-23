@@ -87,5 +87,14 @@ def data_distrib(npar, data):
 
 def two_dim_ds(npar, data_tag):
     init_sample = data_distrib(npar, data_tag)
-    init_ds = TensorDataset(init_sample)
+    init_ds = TensorDSwithLabels(init_sample)
     return init_ds
+
+class TensorDSwithLabels(TensorDataset):
+
+    def __init__(self, samples):
+        super().__init__(samples)
+
+    def __getitem__(self, index):
+        batch = super().__getitem__(index)[0]
+        return batch, torch.tensor(-1)

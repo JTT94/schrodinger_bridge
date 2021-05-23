@@ -11,7 +11,7 @@ defaults:
 # data
 
 #data_dir:  /data/greyostrich/oxwasp/oxwasp18/thornton/20-schrodinger/data/
-data_dir: /home/prof/debortoli/20-schrodinger/code/
+data_dir: /home/james/schrodinger_bridge/data/
 #data_dir: /home/thornton/20-schrodinger/data/
 
 # logging
@@ -23,6 +23,7 @@ CSV_log_dir: ./
 cache_gpu: False
 num_cache_batches: 10
 cache_refresh_stride: 1000
+num_data_classes: 0
 plot_level: 2
 paths: 
   experiments_dir_name: experiments

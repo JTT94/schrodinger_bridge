@@ -1,6 +1,7 @@
 
 
 import torch
+from .base import Diffusion
 
 def grad_gauss(x, m, var):
     xout = (x - m) / var
@@ -41,10 +42,12 @@ class OUSampler(Diffusion):
         self.time_sampler = time_sampler
     
     def compute_loss_terms(self, init_samples, labels, t_batch=None, net=None):
-        return forward(init_samples, labels, t_batch, net)
+        with torch.no_grad():
+            return forward(init_samples, labels, t_batch, net)
 
     def sample(self, init_samples, labels, t_batch=None, net=None):
-        x_tot, _, _, _ = self.forward(init_samples, labels, t_batch, net)
+        with torch.no_grad():
+            x_tot, _, _, _ = self.forward(init_samples, labels, t_batch, net)
         return x_tot
 
     def forward(self, init_samples, labels, t_batch=None, net=None):

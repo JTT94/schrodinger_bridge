@@ -13,7 +13,7 @@ from torchvision.utils import save_image
 class MNIST(Dataset):
     def __init__(self, root="./dataset", load=True, source_root=None, imageSize=28,
                  train=True, num_channels=3, device='cpu'):  # load=True means loading the dataset from existed files.
-        super(Stacked_MNIST, self).__init__()
+        super().__init__()
         self.num_channels = min(3,num_channels)
         if load:
             self.data = torch.load(os.path.join(root, "data.pt"))

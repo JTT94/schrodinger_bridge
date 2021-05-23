@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from ..models import *
 from ..data.two_dim import two_dim_ds
 from ..data.mnist import MNIST
@@ -59,7 +60,7 @@ def get_model(args):
                     "attention_resolutions": tuple(attention_ds),
                     "dropout": args.model.dropout,
                     "channel_mult": channel_mult,
-                    "num_classes": None,
+                    "num_classes": args.num_data_classes,
                     "use_checkpoint": args.model.use_checkpoint,
                     "num_heads": args.model.num_heads,
                     "num_heads_upsample": args.model.num_heads_upsample,
@@ -130,20 +131,20 @@ def get_datasets(args):
         saved_file = os.path.join(root, "data.pt")
         load = os.path.exists(saved_file) 
         load = args.load
-        init_ds = Stacked_MNIST(root, load=load, source_root=root, 
-                                train=True, num_channels = args.data.channels, 
-                                imageSize=args.data.image_size,
-                                device=args.device)
+        init_ds = MNIST(root, load=load, source_root=root, 
+                        train=True, num_channels = args.data.channels, 
+                        imageSize=args.data.image_size,
+                        device=args.device)
 
     if dataset_transfer_tag == DATASET_STACKEDMNIST:
         root = os.path.join(args.data_dir, 'mnist')
         saved_file = os.path.join(root, "data.pt")
         load = os.path.exists(saved_file)
         load = args.load
-        final_ds = Stacked_MNIST(root, load=load, source_root=root,
-                                train=True, num_channels = args.data.channels,
-                                imageSize=args.data.image_size,
-                                device=args.device)
+        final_ds = MNIST(root, load=load, source_root=root,
+                        train=True, num_channels = args.data.channels,
+                        imageSize=args.data.image_size,
+                        device=args.device)
         mean_final = torch.tensor(0.)
         var_final = torch.tensor(1.*10**3)
 
@@ -208,3 +209,38 @@ def get_datasets(args):
 
     return init_ds, final_ds, mean_final, var_final
 
+
+def get_schedule(args):
+    num_diffusion_timesteps = args.nit
+    n = num_diffusion_timesteps//2
+    if args.gamma_space == 'cosine':
+        return betas_for_alpha_bar(
+            num_diffusion_timesteps,
+            lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,
+            max_beta=args.gamma_max
+        )
+    elif args.gamma_space == 'linspace':
+        gamma_half = np.linspace(args.gamma_min,args.gamma_max, n)
+        return np.concatenate([gamma_half, np.flip(gamma_half)])
+    elif args.gamma_space == 'geomspace':
+        gamma_half = np.geomspace(args.gamma_min, args.gamma_max, n)
+        return np.concatenate([gamma_half, np.flip(gamma_half)])
+
+
+def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
+    """
+    Create a beta schedule that discretizes the given alpha_t_bar function,
+    which defines the cumulative product of (1-beta) over time from t = [0,1].
+    :param num_diffusion_timesteps: the number of betas to produce.
+    :param alpha_bar: a lambda that takes an argument t from 0 to 1 and
+                      produces the cumulative product of (1-beta) up to that
+                      part of the diffusion process.
+    :param max_beta: the maximum beta to use; use values lower than 1 to
+                     prevent singularities.
+    """
+    betas = []
+    for i in range(num_diffusion_timesteps):
+        t1 = i / num_diffusion_timesteps
+        t2 = (i + 1) / num_diffusion_timesteps
+        betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
+    return np.array(betas)
