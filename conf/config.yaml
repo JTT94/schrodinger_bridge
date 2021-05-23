@@ -1,0 +1,30 @@
+# @package _global_
+
+defaults:
+  - launcher: local
+  - job
+  - dataset: stackedmnist #celeba, 2d, stackedmnist
+  - hydra/launcher: basic 
+  - model: UNET #Basic, DDPM, NCSN, NCSNv1
+  
+
+# data
+
+#data_dir:  /data/greyostrich/oxwasp/oxwasp18/thornton/20-schrodinger/data/
+data_dir: /home/prof/debortoli/20-schrodinger/code/
+#data_dir: /home/thornton/20-schrodinger/data/
+
+# logging
+LOGGER: CSV # NEPTUNE, CSV, NONE
+NEPTUNE_TOKEN: eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiODE5YjBiZGYtN2ZiYS00YWU0LTg3N2MtZDBiNWMyN2QwZjEwIn0=
+NEPTUNE_PROJECT: 'CompStats/SchrodingerBridge'
+CSV_log_dir: ./
+
+cache_gpu: False
+num_cache_batches: 10
+cache_refresh_stride: 1000
+plot_level: 2
+paths: 
+  experiments_dir_name: experiments
+
+  

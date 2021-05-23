@@ -1,0 +1,72 @@
+# @package _global_
+
+# data 
+Dataset: stackedmnist
+data:
+  dataset: "Stacked_MNIST"
+  category: ""
+  image_size: 28
+  channels: 1
+  logit_transform: false
+  uniform_dequantization: false
+  gaussian_dequantization: false
+  random_flip: true
+  rescaled: false
+  centered: true
+
+# transfer
+transfer: False
+Dataset_transfer: mnist
+
+
+final_adaptive: False
+adaptive_mean: True
+mean_final: torch.zeros([${data.channels}, ${data.image_size}, ${data.image_size}])
+var_final: 1 * torch.ones([${data.channels}, ${data.image_size}, ${data.image_size}])
+load: False
+
+# device
+device: cuda
+dataparallel: True
+num_workers: 8 
+pin_memory: True
+distributed: False
+
+# logging
+log_stride : 10
+gif_stride: 5000
+
+# training
+cache_npar: 10000
+use_prev_net: False
+ema: True
+ema_rate: 0.999
+grad_clipping: True
+grad_clip: 1.0
+nit : 250
+plot_npar: 100
+n_ipf_init: 1
+batch_size: 128
+num_iter : 500000
+n_ipf: 20
+lr: 0.0001
+gamma_max: 0.1
+gamma_min: 0.00001
+gamma_space: linspace
+weight_distrib: True
+weight_distrib_alpha: 100
+corrector: False
+fast_sampling: True
+
+
+# checkpoint
+checkpoint_run: True
+checkpoint_it: 1
+checkpoint_pass: forward
+sample_checkpoint_b: /home/debortoli/gpuidp/20-schrodinger/code/scripts/experiments/2021-05-17/main/batch_size=128,cache_npar=500,checkpoint_run=False,corrector=False,dataparallel=True,model.num_channels=64,model=UNET,n_ipf=1000,nit=20,num_cache_batches=10,num_iter=5000,plot_level=2,use_prev_net=False,weight_distrib_alpha=100/13-12-04/checkpoints/
+
+# vae
+
+load_vae: False
+path_vae: /home/prof/debortoli/20-schrodinger/code/scripts/experiments/2021-05-13/script_vae/batch_size=64,cache_npar=500,checkpoint_run=True,corrector=False,dataparallel=True,load_vae=False,model.num_channels=64,n_ipf=10,nit=10,num_cache_batches=10,num_iter=5000,pass_vae=50,plot_level=2,plot_npar=500,use_prev_net=False,weight_distrib_alpha=100/20-06-18/vae_net.ckpt
+pass_vae: 1000

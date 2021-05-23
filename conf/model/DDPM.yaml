@@ -1,0 +1,20 @@
+# @package _global_
+
+Model: DDPM 
+model:
+  sigma_min: 0.01
+  sigma_max : 50
+  num_scales : 1000
+  beta_min : 0.1
+  beta_max : 20.
+  dropout : 0.1
+  embedding_type : 'fourier'
+  scale_by_sigma : False
+  normalization : 'GroupNorm'
+  nonlinearity : 'swish'
+  nf : 128
+  ch_mult : (1, 2, 2, 2)
+  num_res_blocks : 2
+  attn_resolutions : (16,)
+  resamp_with_conv : True
+  conditional : True

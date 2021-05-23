@@ -1,0 +1,19 @@
+# @package _global_
+
+Model: NCSNv1 
+model:
+  size: Large #Small, Large
+  sigma_begin: 1
+  sigma_end: 0.01
+  num_classes: ${nit}
+  batch_norm: false
+  ## configurations for CelebA, CIFAR10
+#  ngf: 128
+  ### configurations for MNIST
+#  ngf: 64
+  ### configurations for MNIST downsample
+  ngf: 32
+  nblocks: 1
+  nshapes: 1
+  norm_type: ConditionalInstanceNorm2dPlus #ConditionalInstanceNorm2dPlus, PositionalNorm
+  refine_end: Small #Small, RCU
