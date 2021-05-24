@@ -54,8 +54,9 @@ class IPFStep(IPFStepBase):
             pbar = tqdm(total =self.num_iter)
         
         if self.cache_loader:
+            cache_dl = None
             torch.cuda.empty_cache()
-            cache_dl = self.get_cacheloader()
+            cache_dl, cache_ds = self.get_cacheloader()
 
 
         while (
@@ -81,14 +82,21 @@ class IPFStep(IPFStepBase):
                     pbar.update(100)
 
             if (self.step % self.cache_refresh == 0) & (self.step > 0) & self.cache_loader:
-                del cache_dl
+                cache_ds.deconstruct()
+                cache_dl = None
+                cache_ds = None
                 torch.cuda.empty_cache()
-                cache_dl = self.get_cacheloader()
+                cache_dl, cache_ds = self.get_cacheloader()
 
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
             self.save()
             torch.save(self.model, os.path.join(self.checkpoint_dir, 'final_model.pt'))
+            zero_grad(self.master_params)
+            if self.cache_loader:
+                cache_ds.deconstruct()
+            cache_dl = None
+            torch.cuda.empty_cache()
             
 
     def run_step(self, x, target, steps, labels):
@@ -104,7 +112,7 @@ class IPFStep(IPFStepBase):
         loss.backward() 
          
     def get_cacheloader(self):
-        cache_dl = CacheLoader(self.forward_model, 
+        cache_ds = CacheLoader(self.forward_model, 
                                 self.cache_data_loader, 
                                 self.args.num_cache_batches, 
                                 self.forward_diffusion, 
@@ -112,6 +120,6 @@ class IPFStep(IPFStepBase):
                                 device=dist_util.dev(),
                                 t_batch = self.args.t_batch,
                                 classes = self.classes)
-        cache_dl = DataLoader(cache_dl, batch_size=self.args.batch_size)
+        cache_dl = DataLoader(cache_ds, batch_size=self.args.batch_size)
         cache_dl = repeater(cache_dl)
-        return cache_dl
+        return cache_dl, cache_ds

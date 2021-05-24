@@ -23,7 +23,7 @@ load: False
 # device
 device: cuda
 dataparallel: True
-num_workers: 8 
+num_workers: 2
 pin_memory: False
 distributed: False
 
@@ -32,11 +32,12 @@ log_stride : 10
 gif_stride: 5000
 
 # training
-cache_npar: 1000
+cache_npar: 256
+cache_refresh_stride: 100
 use_prev_net: False
 ema: True
-ema_rate: 0.999
-grad_clipping: True
+ema_rate: 0.9999
+grad_clipping: False
 grad_clip: 1.0
 nit : 50
 plot_npar: 100

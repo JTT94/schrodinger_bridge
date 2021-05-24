@@ -1,6 +1,7 @@
 import os,sys
 import numpy as np
 import torch
+import time
 
 import torch.distributed as dist
 from bridge.utils import dist_util
@@ -141,9 +142,11 @@ class IPF(torch.nn.Module):
                     sample_model.load_state_dict(
                             dist_util.load_state_dict(file_path, map_location="cpu")
                         )
+                    for param in sample_model.parameters():
+                        param.requires_grad = False
                     sample_model.to(dist_util.dev())
 
-
+                
 
                 IPFStep(model=model,
                         forward_diffusion=forward_diffusion,
@@ -156,6 +159,10 @@ class IPF(torch.nn.Module):
                         cache_data_loader = cache_data_loader,
                         checkpoint_directory=checkpoint_dir,
                         plot_directory= plot_dir).run_loop()
+                
+                torch.cuda.empty_cache()
+                time.sleep(1)
+                
                 
 
     def find_last_checkpoint(self, checkpoint_directory, ema=True):

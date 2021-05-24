@@ -38,7 +38,8 @@ class NetSampler(Diffusion):
     
     def compute_loss_terms(self, init_samples, labels, t_batch=None, net=None):
         with torch.no_grad():
-            return self.forward(init_samples, labels, t_batch, net)
+            x_tot, out, steps_expanded, labels_expanded = self.forward(init_samples, labels, t_batch, net)
+        return x_tot, out, steps_expanded, labels_expanded
 
     def sample(self, init_samples, labels, t_batch=None, net=None):
         with torch.no_grad():

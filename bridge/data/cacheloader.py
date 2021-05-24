@@ -30,10 +30,12 @@ class CacheLoader(Dataset):
             for b in range(num_batches):
                 batch, labels = next(data_loader)
                 batch = batch.to(device)
-                labels = None if labels is None else labels.to(device)
-                x, target, steps, labels = forward_diffusion.compute_loss_terms(batch, labels, 
+                labels = None if not self.classes else labels.to(device)
+                with torch.no_grad():
+                    x, target, steps, labels = forward_diffusion.compute_loss_terms(batch, labels, 
                                                                                 net=sample_net, 
                                                                                 t_batch=t_batch)
+                    
                 x = x.unsqueeze(2)
                 target = target.unsqueeze(2)
                 batch_data = torch.cat((x, target), dim=2)
@@ -45,12 +47,21 @@ class CacheLoader(Dataset):
                 self.steps_data[b] = flat_steps # = torch.cat((self.steps_data, flat_steps),0)
 
                 if self.classes:
+                    labels = labels.unsqueeze(2)
                     labels_flat = labels.flatten(start_dim=0, end_dim=1)
                     self.labels[b] = labels_flat
         
         self.data = self.data.flatten(start_dim=0, end_dim=1)
         self.steps_data = self.steps_data.flatten(start_dim=0, end_dim=1)
+        if self.classes:
+            self.labels = self.labels.flatten(start_dim=0, end_dim=1)
     
+    def deconstruct(self):
+        self.data = None
+        self.steps_data = None
+        self.labels = None
+        torch.cuda.empty_cache()
+
     def __getitem__(self, index):
         item = self.data[index]
         x = item[0]
