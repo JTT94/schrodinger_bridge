@@ -2,6 +2,7 @@ import os,sys
 import numpy as np
 import torch
 
+import torch.distributed as dist
 from bridge.utils import dist_util
 from bridge.diffusions.time_sampler import TimeSampler
 from bridge.trainer.config_getters import get_model, get_datasets, get_schedule, get_dataloader
