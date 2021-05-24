@@ -30,5 +30,5 @@ paths:
 
 weight_decay: 0.0
 save_interval: 5000
-
+transfer: False
 out_dir: output

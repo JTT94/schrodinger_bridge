@@ -101,6 +101,6 @@ class IPFStep(IPFStepBase):
                                 self.forward_diffusion, 
                                 self.args.batch_size, 
                                 device=dist_util.dev())
-        cache_dl = DataLoader(cache_dl, batch_size=self.batch_size)
+        cache_dl = DataLoader(cache_dl, batch_size=self.cache_num_par)
         cache_dl = repeater(cache_dl)
         return cache_dl
