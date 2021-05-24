@@ -58,10 +58,11 @@ class IPF(torch.nn.Module):
 
                 checkpoint_dir = os.path.join(self.out_dir, train_direction, str(i), 'checkpoints')
                 plot_dir = os.path.join(self.out_dir, train_direction, str(i), 'im')
-                if not os.path.exists(checkpoint_dir):
-                    os.makedirs(checkpoint_dir)
-                if not os.path.exists(plot_dir):
-                    os.makedirs(plot_dir)
+                if dist.get_rank() == 0:
+                    if not os.path.exists(checkpoint_dir):
+                        os.makedirs(checkpoint_dir)
+                    if not os.path.exists(plot_dir):
+                        os.makedirs(plot_dir)
 
                 if train_direction == 'forward':
                     prev_checkpoint_dir =  os.path.join(self.out_dir, 'backward', str(i), 'checkpoints')
