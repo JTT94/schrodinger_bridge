@@ -21,7 +21,7 @@ NEPTUNE_PROJECT: 'CompStats/SchrodingerBridge'
 CSV_log_dir: ./
 
 cache_gpu: False
-num_cache_batches: 10
+num_cache_batches: 1
 cache_refresh_stride: 1000
 num_data_classes: 0
 plot_level: 2
@@ -32,3 +32,4 @@ weight_decay: 0.0
 save_interval: 5000
 transfer: False
 out_dir: output
+t_batch: 32

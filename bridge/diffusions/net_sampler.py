@@ -49,6 +49,8 @@ class NetSampler(Diffusion):
 
         if t_batch is None:
             t_batch = self.num_steps
+        else:
+            t_batch = min(t_batch, self.num_steps)
         if self.time_sampler is not None:
             levels, _ = torch.sort(self.time_sampler.sample(t_batch))
         else: 
@@ -73,15 +75,15 @@ class NetSampler(Diffusion):
         for k in range(num_iter):
             gamma = self.gammas[k]
             if self.num_classes > 0:
-                t_old = x + net(x, steps[:, k, :], labels)#* 2 * gamma 
+                t_old = net(x, steps[:, k, :], labels)#* 2 * gamma 
                 z = torch.randn(x.shape, device=x.device)
                 x = t_old + torch.sqrt(2 * gamma) * z
-                t_new = x + net(x, steps[:, k, :], labels)#* 2 * gamma 
+                t_new = net(x, steps[:, k, :], labels)#* 2 * gamma 
             else:
-                t_old = x + net(x, steps[:, k, :])#* 2 * gamma 
+                t_old = net(x, steps[:, k, :])#* 2 * gamma 
                 z = torch.randn(x.shape, device=x.device)
                 x = t_old + torch.sqrt(2 * gamma) * z
-                t_new = x + net(x, steps[:, k, :])#* 2 * gamma 
+                t_new = net(x, steps[:, k, :])#* 2 * gamma 
             
             store_idx = torch.eq(levels, k)
             if torch.any(store_idx):

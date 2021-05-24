@@ -52,7 +52,7 @@ weight_distrib: False
 weight_distrib_alpha: 100
 corrector: False
 fast_sampling: True
-
+t_batch: 32
 
 # checkpoint
 checkpoint_run: False

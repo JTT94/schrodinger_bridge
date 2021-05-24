@@ -53,6 +53,8 @@ class OUSampler(Diffusion):
     def forward(self, init_samples, labels, t_batch=None, net=None):
         if t_batch is None:
             t_batch = self.num_steps
+        else:
+            t_batch = min(t_batch, self.num_steps)
         if self.time_sampler is not None:
             levels, _ = torch.sort(self.time_sampler.sample(t_batch))
         else: 

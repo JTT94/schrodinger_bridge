@@ -90,7 +90,7 @@ class IPFStep(IPFStepBase):
 
     def forward_backward(self, x, target, eval_steps, labels):
         zero_grad(self.master_params)
-        pred = self.model(x, eval_steps, labels)
+        pred = self.model(x, eval_steps, labels) - x
         loss = F.mse_loss(pred, target)
         loss.backward() 
          
@@ -100,7 +100,8 @@ class IPFStep(IPFStepBase):
                                 self.args.num_cache_batches, 
                                 self.forward_diffusion, 
                                 self.args.batch_size, 
-                                device=dist_util.dev())
-        cache_dl = DataLoader(cache_dl, batch_size=self.cache_num_par)
+                                device=dist_util.dev(),
+                                t_batch = self.args.t_batch)
+        cache_dl = DataLoader(cache_dl, batch_size=self.args.cache_npar)
         cache_dl = repeater(cache_dl)
         return cache_dl
