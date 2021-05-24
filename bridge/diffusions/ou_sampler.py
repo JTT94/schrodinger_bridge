@@ -43,7 +43,7 @@ class OUSampler(Diffusion):
     
     def compute_loss_terms(self, init_samples, labels, t_batch=None, net=None):
         with torch.no_grad():
-            return forward(init_samples, labels, t_batch, net)
+            return self.forward(init_samples, labels, t_batch, net)
 
     def sample(self, init_samples, labels, t_batch=None, net=None):
         with torch.no_grad():

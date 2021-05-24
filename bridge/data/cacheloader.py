@@ -11,7 +11,8 @@ class CacheLoader(Dataset):
                  forward_diffusion, 
                  batch_size, 
                  device='cpu', 
-                 t_batch=None
+                 t_batch=None,
+                 classes = False
                  ): 
 
         super().__init__()
@@ -21,18 +22,18 @@ class CacheLoader(Dataset):
             t_batch = num_steps
         else:
             t_batch = min(t_batch, num_steps)
-        self.forward_model = sample_net
-        self.forward_diffusion = forward_diffusion
         self.data = torch.zeros((num_batches, batch_size*t_batch, 2, *shape)).to(device)#.cpu()
         self.steps_data = torch.zeros((num_batches, batch_size*t_batch,1), dtype=torch.long).to(device)#.cpu() # steps
         self.labels = torch.zeros((num_batches, batch_size*t_batch,1), dtype=torch.long).to(device)#.cpu() # steps
-        self.classes = False
+        self.classes = classes
         with torch.no_grad():
             for b in range(num_batches):
                 batch, labels = next(data_loader)
-                x, target, steps, labels = self.forward_diffusion.compute_loss_terms(batch, labels, 
-                                                                                     net=self.forward_model, 
-                                                                                     t_batch=t_batch)
+                batch = batch.to(device)
+                labels = None if labels is None else labels.to(device)
+                x, target, steps, labels = forward_diffusion.compute_loss_terms(batch, labels, 
+                                                                                net=sample_net, 
+                                                                                t_batch=t_batch)
                 x = x.unsqueeze(2)
                 target = target.unsqueeze(2)
                 batch_data = torch.cat((x, target), dim=2)
@@ -43,8 +44,7 @@ class CacheLoader(Dataset):
                 flat_steps = steps.flatten(start_dim=0, end_dim=1)#.to('cpu')
                 self.steps_data[b] = flat_steps # = torch.cat((self.steps_data, flat_steps),0)
 
-                if labels is not None:
-                    self.classes = True
+                if self.classes:
                     labels_flat = labels.flatten(start_dim=0, end_dim=1)
                     self.labels[b] = labels_flat
         
@@ -58,9 +58,9 @@ class CacheLoader(Dataset):
         steps = self.steps_data[index]
         if self.classes:
             labels = self.labels[index]
+            return x, out, steps, labels
         else:
-            labels = -1
-        return x, out, steps, labels
+            return x, out, steps
 
     def __len__(self):
         return self.data.shape[0]

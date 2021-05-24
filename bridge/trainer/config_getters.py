@@ -248,7 +248,9 @@ def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     return np.array(betas)
 
 
-def get_dataloader(args):
+def get_dataloader(args, batch_size = None):
+    if batch_size is None:
+        batch_size = args.batch_size
     def worker_init_fn(worker_id):                                                          
             np.random.seed(np.random.get_state()[1][0] + worker_id + dist.get_rank())
     kwargs = {"num_workers": args.num_workers, 
@@ -256,6 +258,6 @@ def get_dataloader(args):
             "worker_init_fn": worker_init_fn,
             "drop_last": True}
     init_ds, final_ds, mean_final, var_final = get_datasets(args)
-    data_loader = repeater(DataLoader(init_ds, batch_size=args.batch_size, shuffle=True, **kwargs))
+    data_loader = repeater(DataLoader(init_ds, batch_size=batch_size, shuffle=True, **kwargs))
     data_loader = repeater(data_loader)
     return data_loader, mean_final, var_final

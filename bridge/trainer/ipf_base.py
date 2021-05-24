@@ -1,7 +1,7 @@
 import copy
 import functools
 import os
-
+import torch
 import torch.nn.functional as F
 import blobfile as bf
 import torchvision.utils as vutils
@@ -9,11 +9,13 @@ import numpy as np
 import torch as th
 import torch.distributed as dist
 from torch.nn.parallel.distributed import DistributedDataParallel as DDP
-from torch.optim import AdamW
+from torch.optim import Adam
 from ..models.unet.fp16_util import zero_grad
 from tqdm  import tqdm
 from ..utils import dist_util
 import matplotlib.pyplot as plt
+from .plotters import ImPlotter
+from .config_getters import get_model
 
 
 class IPFStepBase(th.nn.Module):
@@ -24,6 +26,7 @@ class IPFStepBase(th.nn.Module):
         backward_diffusion,
         data_loader,
         prior_loader,
+        cache_data_loader = None,
         args = None,
         forward_model = None,
         cache_loader = False, 
@@ -44,6 +47,7 @@ class IPFStepBase(th.nn.Module):
         self.forward_model = forward_model
         self.prior_loader = prior_loader
         self.data_loader = data_loader
+        self.cache_data_loader = cache_data_loader
 
         self.num_steps = self.args.nit
         self.num_iter = self.args.num_iter
@@ -52,6 +56,7 @@ class IPFStepBase(th.nn.Module):
         self.cache_loader = cache_loader
         self.cache_refresh = self.args.cache_refresh_stride
         self.lr = self.args.lr
+        self.classes = self.args.num_data_classes > 0
         self.weight_decay = self.args.weight_decay
         self.ema_rate = (
             [ema_rate]
@@ -61,6 +66,7 @@ class IPFStepBase(th.nn.Module):
         self.save_interval = save_interval
         self.checkpoint_dir = checkpoint_directory
         self.plot_dir = plot_directory
+        self.plotter = ImPlotter(im_dir=self.plot_dir, plot_level=1)
 
         self.step = 0
         self.resume_step = resume_checkpoint
@@ -74,7 +80,7 @@ class IPFStepBase(th.nn.Module):
         self._load_and_sync_parameters()
 
         # Optimizers
-        self.opt = AdamW(self.master_params, lr=self.lr, weight_decay=self.weight_decay)
+        self.opt = Adam(self.master_params, lr=self.lr)
         if self.resume_step:
             self._load_optimizer_state()
             # Model was resumed, either due to a restart or a checkpoint
@@ -95,7 +101,7 @@ class IPFStepBase(th.nn.Module):
                 output_device=dist_util.dev(),
                 broadcast_buffers=False,
                 bucket_cap_mb=128,
-                find_unused_parameters=True,
+                find_unused_parameters=False,
             )
         else:
             if dist.get_world_size() > 1:
@@ -142,44 +148,11 @@ class IPFStepBase(th.nn.Module):
             )
             self.opt.load_state_dict(state_dict)
 
-    def run_loop(self):
-        if dist.get_rank() == 0:
-            print('Training Loop ..............')
-            pbar = tqdm(total =self.num_iter)
-        while (
-            self.step + self.resume_step < self.num_iter
-        ):
-            init_samples, labels = next(self.data_loader)
-            init_samples = init_samples.to(dist_util.dev())
-            labels = labels.to(dist_util.dev()) 
-
-            x, target, steps, labels = self.forward_diffusion.compute_loss_terms(init_samples, labels)
-            self.run_step(x, target, steps, labels)
-            if self.step % self.save_interval == 0:
-                self.save()
-            self.step += 1
-            if (dist.get_rank() == 0) & ((self.step) % 100==0):
-                    pbar.update(100)
-        # Save the last checkpoint if it wasn't already saved.
-        if (self.step - 1) % self.save_interval != 0:
-            self.save()
-            
-
-    def run_step(self, x, target, steps, labels):
-        eval_steps = self.num_steps - 1 - steps
-        self.forward_backward(x, target, eval_steps, labels)
-        self.optimize_step()
-        self.log_step()
-
-    def forward_backward(self, x, target, eval_steps, labels):
-        zero_grad(self.master_params)
-        pred = self.model(x, eval_steps, labels)
-        loss = F.mse_loss(pred, target)
-        loss.backward()
-
-
     def optimize_step(self):
-        self._anneal_lr()
+        #self._anneal_lr()
+        if self.args.grad_clipping:
+            clipping_param = self.args.grad_clip
+            total_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), clipping_param)
         self.opt.step()
         for rate, params in zip(self.ema_rate, self.ema_params):
             update_ema(params, self.master_params, rate=rate)
@@ -203,7 +176,20 @@ class IPFStepBase(th.nn.Module):
         # plt.plot(x[:,-1,0], x[:,-1,1], 'ro')
         # plt.savefig(os.path.join(self.plot_dir, filename), bbox_inches = 'tight', transparent = True, dpi=200)
         # plt.close()
+        if dist.get_rank() == 0:
+            init_samples, labels = next(self.prior_loader)
+            init_samples = init_samples.to(dist_util.dev())
+            labels = labels.to(dist_util.dev()) if labels is not None else None
 
+            sample_model = get_model(self.args)
+            for params in self.ema_params:
+                state_dict = self._master_params_to_state_dict(params)
+                sample_model.load_state_dict(state_dict)
+                sample_model = sample_model.to(dist_util.dev())
+                x_tot_plot = self.backward_diffusion.sample(init_samples, labels, t_batch=None, net=sample_model)
+                self.plotter.plot(init_samples, x_tot_plot)
+            sample_model = None
+            torch.cuda.empty_cache()
         def save_checkpoint(rate, params):
 
             state_dict = self._master_params_to_state_dict(params)

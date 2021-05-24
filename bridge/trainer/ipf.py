@@ -6,8 +6,9 @@ import torch.distributed as dist
 from bridge.utils import dist_util
 from bridge.diffusions.time_sampler import TimeSampler
 from bridge.trainer.config_getters import get_model, get_datasets, get_schedule, get_dataloader
-from bridge.diffusions import FastSampler, NetSampler, PriorSampler
+from bridge.diffusions import FastSampler, NetSampler, PriorSampler, OUSampler
 from bridge.trainer.ipf_step import IPFStep
+import blobfile as bf
 
 class IPF(torch.nn.Module):
 
@@ -27,6 +28,7 @@ class IPF(torch.nn.Module):
 
         # marginal loaders
         self.data_loader, mean_final, var_final = get_dataloader(args)
+        self.cache_data_loader, _, _ = get_dataloader(args, batch_size=self.args.cache_npar)
 
         # get shape
         batch, _ = next(self.data_loader)
@@ -34,6 +36,12 @@ class IPF(torch.nn.Module):
 
         #prior loader
         self.prior_loader = PriorSampler(batch_size=args.batch_size, 
+                                    shape=self.shape, 
+                                    mean_final=mean_final, 
+                                    var_final = var_final, 
+                                    num_classes=self.num_classes, 
+                                    device=dist_util.dev())
+        self.cache_prior_loader = PriorSampler(batch_size=self.args.cache_npar, 
                                     shape=self.shape, 
                                     mean_final=mean_final, 
                                     var_final = var_final, 
@@ -61,9 +69,9 @@ class IPF(torch.nn.Module):
                 plot_dir = os.path.join(self.out_dir, train_direction, str(i), 'im')
                 if dist.get_rank() == 0:
                     if not os.path.exists(checkpoint_dir):
-                        os.makedirs(checkpoint_dir)
+                        bf.makedirs(checkpoint_dir)
                     if not os.path.exists(plot_dir):
-                        os.makedirs(plot_dir)
+                        bf.makedirs(plot_dir)
 
                 if train_direction == 'forward':
                     prev_checkpoint_dir =  os.path.join(self.out_dir, 'backward', str(i), 'checkpoints')
@@ -71,15 +79,28 @@ class IPF(torch.nn.Module):
                     prev_checkpoint_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
 
                 if (i == 0) & (train_direction=='backward'):
-                    cache = False
-                    forward_diffusion = FastSampler(num_steps=self.num_steps, 
-                                                    shape=self.shape,  
-                                                    gammas=self.gammas, 
-                                                    num_classes=self.num_classes, 
-                                                    time_sampler=self.time_sampler, 
-                                                    mean_final=self.prior_loader.mean_final, 
-                                                    var_final=self.prior_loader.var_final, 
-                                                    device=dist_util.dev())
+                    
+                    if self.args.fast_sampling:
+                        cache = False
+                        forward_diffusion = FastSampler(num_steps=self.num_steps, 
+                                                        shape=self.shape,  
+                                                        gammas=self.gammas, 
+                                                        num_classes=self.num_classes, 
+                                                        time_sampler=self.time_sampler, 
+                                                        mean_final=self.prior_loader.mean_final, 
+                                                        var_final=self.prior_loader.var_final, 
+                                                        device=dist_util.dev())
+                    else:
+                        cache = True
+                        forward_diffusion = OUSampler(num_steps=self.num_steps, 
+                                                        shape=self.shape,  
+                                                        gammas=self.gammas, 
+                                                        num_classes=self.num_classes, 
+                                                        time_sampler=self.time_sampler, 
+                                                        mean_final=self.prior_loader.mean_final, 
+                                                        var_final=self.prior_loader.var_final, 
+                                                        device=dist_util.dev())
+
                 else:
                     cache = True
                     forward_diffusion = NetSampler(num_steps=self.num_steps, 
@@ -98,11 +119,13 @@ class IPF(torch.nn.Module):
                                         device = dist_util.dev()
                                         )
                 if train_direction == 'backward':
+                    cache_data_loader = self.cache_data_loader
                     data_loader = self.data_loader
                     prior_loader = self.prior_loader
                     
                 else: #forward becomes backward and vice versa
                     data_loader = self.prior_loader
+                    cache_data_loader = self.cache_prior_loader
                     prior_loader = self.data_loader
 
                 # get model, to train
@@ -130,6 +153,7 @@ class IPF(torch.nn.Module):
                         prior_loader=prior_loader,
                         args=self.args, 
                         cache_loader = cache, 
+                        cache_data_loader = cache_data_loader,
                         checkpoint_directory=checkpoint_dir,
                         plot_directory= plot_dir).run_loop()
                 

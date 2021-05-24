@@ -8,7 +8,7 @@ class PriorSampler:
     def __init__(self, batch_size, shape, mean_final, var_final, num_classes, device):
         self.mean_final = mean_final.to(device)
         self.var_final = var_final.to(device)
-        self.std_final = torch.sqrt(var_final)
+        self.std_final = torch.sqrt(self.var_final)
         self.shape = shape
         self.batch_size = batch_size
         self.num_classes = num_classes

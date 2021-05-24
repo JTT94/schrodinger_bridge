@@ -20,7 +20,7 @@ Dataset_transfer: mnist
 
 
 final_adaptive: False
-adaptive_mean: True
+adaptive_mean: False
 mean_final: torch.zeros([${data.channels}, ${data.image_size}, ${data.image_size}])
 var_final: 1 * torch.ones([${data.channels}, ${data.image_size}, ${data.image_size}])
 load: False
@@ -28,8 +28,8 @@ load: False
 # device
 device: cuda
 dataparallel: True
-num_workers: 8 
-pin_memory: True
+num_workers: 4
+pin_memory: False
 distributed: False
 
 # logging
@@ -41,7 +41,7 @@ cache_npar: 10000
 use_prev_net: False
 ema: True
 ema_rate: 0.999
-grad_clipping: True
+grad_clipping: False
 grad_clip: 1.0
 nit : 250
 plot_npar: 100
@@ -60,7 +60,7 @@ fast_sampling: True
 
 
 # checkpoint
-checkpoint_run: True
+checkpoint_run: False
 checkpoint_it: 1
 checkpoint_pass: forward
 sample_checkpoint_b: /home/debortoli/gpuidp/20-schrodinger/code/scripts/experiments/2021-05-17/main/batch_size=128,cache_npar=500,checkpoint_run=False,corrector=False,dataparallel=True,model.num_channels=64,model=UNET,n_ipf=1000,nit=20,num_cache_batches=10,num_iter=5000,plot_level=2,use_prev_net=False,weight_distrib_alpha=100/13-12-04/checkpoints/

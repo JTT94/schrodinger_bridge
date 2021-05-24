@@ -204,72 +204,26 @@ class Plotter(object):
 
 class ImPlotter(object):
 
-    def __init__(self, im_dir = './im', gif_dir='./gif', plot_level=3):
+    def __init__(self, im_dir = './im', plot_level=3):
         if not os.path.isdir(im_dir):
             os.mkdir(im_dir)
-        if not os.path.isdir(gif_dir):
-            os.mkdir(gif_dir)
         self.im_dir = im_dir
-        self.gif_dir = gif_dir
         self.num_plots = 50
         self.num_digits = 20
-        self.plot_level = plot_level
         
 
-    def plot(self, initial_sample, x_tot_plot, net, i, n, forward_or_backward, ipf_it):
-        if self.plot_level > 0:
-            x_tot_plot = x_tot_plot[:,:self.num_plots]
-            name = '{0}_{1}_{2}'.format(forward_or_backward, n, i)
-            im_dir = os.path.join(self.im_dir, name)
-            
-            if not os.path.isdir(im_dir):
-                os.mkdir(im_dir)         
-            
-            if self.plot_level > 0:
-                plt.clf()
-                filename_grid_png = os.path.join(im_dir, 'im_grid_first.png')
-                vutils.save_image(initial_sample, filename_grid_png, nrow=10)
-                filename_grid_png = os.path.join(im_dir, 'im_grid_final.png')
-                vutils.save_image(x_tot_plot[-1], filename_grid_png, nrow=10)
+    def plot(self, initial_sample, x_tot):
+        shape_len = len(x_tot.shape)
+        x_tot_plot = x_tot.permute(1, 0, *list(range(2, shape_len)))
+        x_tot_plot = x_tot_plot[:,:self.num_plots]     
+        
+        plt.clf()
+        filename_grid_png = os.path.join(self.im_dir, 'im_grid_first.png')
+        vutils.save_image(initial_sample, filename_grid_png, nrow=10)
+        filename_grid_png = os.path.join(self.im_dir, 'im_grid_final.png')
+        vutils.save_image(x_tot_plot[-1], filename_grid_png, nrow=10)
 
-            if self.plot_level >= 2:
-                plt.clf()
-                plot_paths = []
-                num_steps, num_particles, channels, H, W = x_tot_plot.shape
-                x_tot_plot_tiff = x_tot_plot.cpu().numpy()
-                x_tot_plot_tiff = np.moveaxis(x_tot_plot_tiff, 2, -1)        
-                if channels == 1:
-                    x_tot_plot_tiff = x_tot_plot_tiff.reshape(num_steps, num_particles, H, W)
-                x_tot_plot_tiff =  np.concatenate([x_tot_plot_tiff[:,i] for i in range(self.num_digits)],1)
-                plot_steps = np.linspace(0,num_steps-1,self.num_plots, dtype=int) 
-
-                for k in plot_steps:
-                    
-                    
-                    # filename_tiff = os.path.join(im_dir, 'im_{0}.tiff'.format(k))
-                    # if channels == 1:
-                    #     plt.imshow(x_tot_plot_tiff[k].astype('uint8'), cmap='gray')
-                    # else:
-                    #     plt.imshow(x_tot_plot_tiff[k].astype('uint8'))
-                    
-                    # # plot tiff
-                    # if self.plot_level >= 3:
-                    #     # save tiff            
-                    #     im = Image.fromarray(x_tot_plot_tiff[k])
-                    #     im.save(filename_tiff)
-                    # plt.savefig(filename_png, bbox_inches = 'tight', transparent = False)
-                    # save png
-                    filename_grid_png = os.path.join(im_dir, 'im_grid_{0}.png'.format(k))    
-                    # filename_png = os.path.join(im_dir, 'im_{0}.png'.format(k))
-                    plot_paths.append(filename_grid_png)
-                    vutils.save_image(x_tot_plot[k], filename_grid_png, nrow=10)
-                    
-
-                make_gif(plot_paths, output_directory=self.gif_dir, gif_name=name)
-
-    def __call__(self, initial_sample, x_tot_plot, net, i, n, forward_or_backward, ipf_it):
-        self.plot(initial_sample, x_tot_plot, net, i, n, forward_or_backward, ipf_it)
-
+  
 
 class TwoDPlotter(Plotter):
 

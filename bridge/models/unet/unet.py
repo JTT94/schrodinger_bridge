@@ -224,6 +224,7 @@ class UNetModel(nn.Module):
         emb = self.time_embed(timestep_embedding(timesteps, self.model_channels))
 
         if self.num_classes>0:
+            y = y.squeeze()
             assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
 

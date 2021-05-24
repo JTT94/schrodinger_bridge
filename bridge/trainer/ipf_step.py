@@ -27,6 +27,7 @@ class IPFStep(IPFStepBase):
                     backward_diffusion,
                     data_loader,
                     prior_loader,
+                    cache_data_loader = None,
                     forward_model = None,
                     args=None, 
                     cache_loader = False, 
@@ -39,6 +40,7 @@ class IPFStep(IPFStepBase):
                         backward_diffusion=backward_diffusion,
                         data_loader=data_loader,
                         prior_loader=prior_loader,
+                        cache_data_loader=cache_data_loader,
                         forward_model=forward_model,
                         args=args, 
                         cache_loader = cache_loader, 
@@ -52,6 +54,7 @@ class IPFStep(IPFStepBase):
             pbar = tqdm(total =self.num_iter)
         
         if self.cache_loader:
+            torch.cuda.empty_cache()
             cache_dl = self.get_cacheloader()
 
 
@@ -60,12 +63,16 @@ class IPFStep(IPFStepBase):
         ):
             init_samples, labels = next(self.data_loader)
             init_samples = init_samples.to(dist_util.dev())
-            labels = None if labels is None else labels.to(dist_util.dev()) 
+            labels = None if not self.classes else labels.to(dist_util.dev()) 
 
             if not self.cache_loader:
                 x, target, steps, labels = self.forward_diffusion.compute_loss_terms(init_samples, labels)
             else:
-                x, target, steps, labels = next(cache_dl)
+                if self.classes:
+                    x, target, steps, labels = next(cache_dl)
+                else:
+                    x, target, steps = next(cache_dl)
+                    labels = None
             self.run_step(x, target, steps, labels)
             if self.step % self.save_interval == 0:
                 self.save()
@@ -74,6 +81,8 @@ class IPFStep(IPFStepBase):
                     pbar.update(100)
 
             if (self.step % self.cache_refresh == 0) & (self.step > 0) & self.cache_loader:
+                del cache_dl
+                torch.cuda.empty_cache()
                 cache_dl = self.get_cacheloader()
 
         # Save the last checkpoint if it wasn't already saved.
@@ -96,12 +105,13 @@ class IPFStep(IPFStepBase):
          
     def get_cacheloader(self):
         cache_dl = CacheLoader(self.forward_model, 
-                                self.data_loader, 
+                                self.cache_data_loader, 
                                 self.args.num_cache_batches, 
                                 self.forward_diffusion, 
-                                self.args.batch_size, 
+                                self.args.cache_npar, 
                                 device=dist_util.dev(),
-                                t_batch = self.args.t_batch)
-        cache_dl = DataLoader(cache_dl, batch_size=self.args.cache_npar)
+                                t_batch = self.args.t_batch,
+                                classes = self.classes)
+        cache_dl = DataLoader(cache_dl, batch_size=self.args.batch_size)
         cache_dl = repeater(cache_dl)
         return cache_dl
