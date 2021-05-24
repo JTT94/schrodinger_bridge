@@ -6,7 +6,7 @@ import numpy as np
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-
+import torch
 from .fp16_util import convert_module_to_f16, convert_module_to_f32
 from .layers import *
 
@@ -212,7 +212,9 @@ class UNetModel(nn.Module):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
-        y = None if torch.any(y<0) else y
+        if y is not None:
+            if torch.any(y<0):
+                y=None
         timesteps = timesteps.squeeze()
         assert ((y is not None)) == (
             self.num_classes>0
