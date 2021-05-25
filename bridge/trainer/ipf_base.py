@@ -1,6 +1,7 @@
 import copy
 import functools
 import os
+import random
 import torch
 import torch.nn.functional as F
 import blobfile as bf
@@ -36,6 +37,8 @@ class IPFStepBase(th.nn.Module):
     ):
 
         super().__init__()
+
+        self.set_seed(dist.get_rank()+0)
         ema_rate = args.ema_rate
         save_interval=args.save_interval
         lr_anneal_steps = 0
@@ -168,14 +171,6 @@ class IPFStepBase(th.nn.Module):
 
 
     def save(self):
-        # init_samples, labels = next(self.prior_loader)
-        # init_samples = init_samples.to(dist_util.dev())
-        # labels = labels.to(dist_util.dev()) if labels is not None else None
-        # x = self.backward_diffusion.sample(init_samples, labels, net=self.model).detach().cpu()
-        # filename = 'final.png'
-        # plt.plot(x[:,-1,0], x[:,-1,1], 'ro')
-        # plt.savefig(os.path.join(self.plot_dir, filename), bbox_inches = 'tight', transparent = True, dpi=200)
-        # plt.close()
         if dist.get_rank() == 0:
             init_samples, labels = next(self.prior_loader)
             init_samples = init_samples.to(dist_util.dev())
@@ -231,6 +226,12 @@ class IPFStepBase(th.nn.Module):
     
     def get_blob_logdir(self):
         return self.plot_dir
+
+    def set_seed(self, seed=0):
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.cuda.manual_seed_all(seed)
 
 def parse_resume_step_from_filename(filename):
     """

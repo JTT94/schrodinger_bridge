@@ -24,6 +24,7 @@ class IPF(torch.nn.Module):
         self.lr =args.lr
         self.out_dir = './' if args.out_dir is None else args.out_dir
         self.num_classes = args.num_data_classes
+        
 
         dist_util.setup_dist()
 
@@ -62,9 +63,16 @@ class IPF(torch.nn.Module):
             prob_vec = gammas * 0 + 1
         self.time_sampler = TimeSampler(prob_vec)
 
+        if args.start_backward :
+            self.loop_order = ['backward', 'forward']
+        else:
+            self.loop_order = ['forward', 'backward']
+
     def ipf_loop(self):
-        for i in range(self.n_ipf):
+        for i in range(self.args.ipf_start, self.n_ipf):
             for train_direction in ['backward', 'forward']:
+
+
 
                 checkpoint_dir = os.path.join(self.out_dir, train_direction, str(i), 'checkpoints')
                 plot_dir = os.path.join(self.out_dir, train_direction, str(i), 'im')
@@ -75,9 +83,11 @@ class IPF(torch.nn.Module):
                         bf.makedirs(plot_dir)
 
                 if train_direction == 'forward':
-                    prev_checkpoint_dir =  os.path.join(self.out_dir, 'backward', str(i), 'checkpoints')
+                    prev_sample_dir =  os.path.join(self.out_dir, 'backward', str(i), 'checkpoints')
+                    prev_model_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
                 else:
-                    prev_checkpoint_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
+                    prev_sample_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
+                    prev_model_dir = os.path.join(self.out_dir, 'backward', str(i-1), 'checkpoints')
 
                 if (i == 0) & (train_direction=='backward'):
                     
@@ -130,14 +140,31 @@ class IPF(torch.nn.Module):
                     prior_loader = self.data_loader
 
                 # get model, to train
-                model = get_model(self.args)
-                model.to(dist_util.dev())
+                if (i == 0) & (train_direction == 'backward'):
+                    model = get_model(self.args)
+                    model.to(dist_util.dev())
+                
+                if ("start_checkpoint" in self.args) & (i==self.args.ipf_start):
+                    model = get_model(self.args)
+                    model.load_state_dict(
+                            dist_util.load_state_dict(self.args.start_checkpoint, map_location="cpu")
+                        )
+                    model.to(dist_util.dev())
+
+                
+                if i > self.args.ipf_start:
+                    file_path = self.find_last_checkpoint(prev_model_dir)
+                    model = get_model(self.args)
+                    model.load_state_dict(
+                            dist_util.load_state_dict(file_path, map_location="cpu")
+                        )
+
 
                 # model to sample from
                 if (i == 0) & (train_direction == 'backward'):
                     sample_model = None
                 else:
-                    file_path = self.find_last_checkpoint(prev_checkpoint_dir)
+                    file_path = self.find_last_checkpoint(prev_sample_dir)
                     sample_model = get_model(self.args)
                     sample_model.load_state_dict(
                             dist_util.load_state_dict(file_path, map_location="cpu")

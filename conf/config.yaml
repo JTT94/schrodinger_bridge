@@ -33,3 +33,5 @@ save_interval: 5000
 transfer: False
 out_dir: output
 t_batch: 32
+start_backward: True
+ipf_start: 0

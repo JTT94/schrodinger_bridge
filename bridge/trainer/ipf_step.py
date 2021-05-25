@@ -47,6 +47,7 @@ class IPFStep(IPFStepBase):
                         resume_checkpoint = resume_checkpoint,
                         checkpoint_directory = checkpoint_directory,
                         plot_directory = plot_directory)
+        print('Rank: {0}'.format(dist.get_rank()))
 
     def run_loop(self):
         if dist.get_rank() == 0:
@@ -62,6 +63,7 @@ class IPFStep(IPFStepBase):
         while (
             self.step + self.resume_step < self.num_iter
         ):
+            self.set_seed(dist.get_rank()+self.step)
             init_samples, labels = next(self.data_loader)
             init_samples = init_samples.to(dist_util.dev())
             labels = None if not self.classes else labels.to(dist_util.dev()) 
@@ -108,7 +110,9 @@ class IPFStep(IPFStepBase):
     def forward_backward(self, x, target, eval_steps, labels):
         zero_grad(self.master_params)
         pred = self.model(x, eval_steps, labels) - x
-        loss = F.mse_loss(pred, target)
+        #loss = (0.5 * ((pred - target) ** 2)).view(pred.shape[0], -1).sum(dim=-1).mean(dim=0)
+        loss = F.mse_loss(pred, target, reduction='sum')/self.args.batch_size
+
         loss.backward() 
          
     def get_cacheloader(self):
