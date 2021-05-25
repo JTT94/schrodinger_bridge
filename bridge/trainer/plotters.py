@@ -205,23 +205,19 @@ class Plotter(object):
 class ImPlotter(object):
 
     def __init__(self, im_dir = './im', plot_level=3):
-        if not os.path.isdir(im_dir):
-            os.mkdir(im_dir)
         self.im_dir = im_dir
         self.num_plots = 50
         self.num_digits = 20
         
 
-    def plot(self, initial_sample, x_tot):
+    def plot(self, initial_sample, x_tot, filename):
         shape_len = len(x_tot.shape)
         x_tot_plot = x_tot.permute(1, 0, *list(range(2, shape_len)))
         x_tot_plot = x_tot_plot[:,:self.num_plots]     
         
         plt.clf()
-        filename_grid_png = os.path.join(self.im_dir, 'im_grid_first.png')
-        vutils.save_image(initial_sample, filename_grid_png, nrow=10)
-        filename_grid_png = os.path.join(self.im_dir, 'im_grid_final.png')
-        vutils.save_image(x_tot_plot[-1], filename_grid_png, nrow=10)
+        filename_grid_png = os.path.join(self.im_dir, filename)
+        vutils.save_image(x_tot_plot[-1], filename_grid_png, nrow=8)
 
   
 

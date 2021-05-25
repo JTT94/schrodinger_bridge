@@ -78,8 +78,8 @@ class IPFStep(IPFStepBase):
             if self.step % self.save_interval == 0:
                 self.save()
             self.step += 1
-            if (dist.get_rank() == 0) & ((self.step) % 100==0):
-                    pbar.update(100)
+            if (dist.get_rank() == 0) & ((self.step) % 1==0):
+                    pbar.update()
 
             if (self.step % self.cache_refresh == 0) & (self.step > 0) & self.cache_loader:
                 cache_ds.deconstruct()

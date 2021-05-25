@@ -150,9 +150,9 @@ class IPFStepBase(th.nn.Module):
 
     def optimize_step(self):
         #self._anneal_lr()
-        if self.args.grad_clipping:
-            clipping_param = self.args.grad_clip
-            total_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), clipping_param)
+        # if self.args.grad_clipping:
+        #     clipping_param = self.args.grad_clip
+        #     total_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), clipping_param)
         self.opt.step()
         for rate, params in zip(self.ema_rate, self.ema_params):
             update_ema(params, self.master_params, rate=rate)
@@ -182,12 +182,13 @@ class IPFStepBase(th.nn.Module):
             labels = labels.to(dist_util.dev()) if labels is not None else None
 
             sample_model = get_model(self.args)
-            for params in self.ema_params:
+            for rate, params in zip(self.ema_rate, self.ema_params):
                 state_dict = self._master_params_to_state_dict(params)
                 sample_model.load_state_dict(state_dict)
                 sample_model = sample_model.to(dist_util.dev())
                 x_tot_plot = self.backward_diffusion.sample(init_samples, labels, t_batch=None, net=sample_model)
-                self.plotter.plot(init_samples, x_tot_plot)
+                filename = 'ema{0}_step{1}.png'.format(rate, self.step)
+                self.plotter.plot(init_samples, x_tot_plot, filename)
             sample_model = None
             torch.cuda.empty_cache()
         def save_checkpoint(rate, params):
