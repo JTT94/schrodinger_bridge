@@ -14,7 +14,7 @@ data:
   rescaled: false
   num_workers: 32
 
-final_adaptive: False
+final_adaptive: false
 adaptive_mean: false
 mean_final: torch.zeros([${data.channels}, ${data.image_size}, ${data.image_size}])
 var_final: 1.0* torch.ones([${data.channels}, ${data.image_size}, ${data.image_size}])
