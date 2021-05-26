@@ -34,6 +34,7 @@ transfer: False
 out_dir: output
 t_batch: 32
 start_backward: True
-start_model_checkpoint: None
-start_sample_checkpoint: /home/james/schrodinger_bridge/scripts/experiments/2021-05-25/main/batch_size=16,cache_npar=128,fast_sampling=True,model.num_channels=64,nit=150,num_iter=500000/15-47-26/output/backward/0/checkpoints/ema_0.999_150000.pt
+start_model_checkpoint_forward: /home/james/schrodinger_bridge/scripts/experiments/2021-05-26/main/batch_size=32,cache_npar=64,fast_sampling=True,model.num_channels=64,nit=150,num_iter=50000,start_backward=False/01-33-12/output/forward/0/checkpoints/ema_0.999_050000.pt
+start_model_checkpoint_backward: /home/james/schrodinger_bridge/scripts/experiments/2021-05-26/main/batch_size=32,cache_npar=64,fast_sampling=True,model.num_channels=64,nit=150,num_iter=50000,start_backward=False/01-33-12/output/backward/0/checkpoints/model050000.pt
+start_sample_checkpoint: /home/james/schrodinger_bridge/scripts/experiments/2021-05-26/main/batch_size=32,cache_npar=64,fast_sampling=True,model.num_channels=64,nit=150,num_iter=50000,start_backward=False/01-33-12/output/backward/0/checkpoints/ema_0.999_050000.pt
 ipf_start: 0

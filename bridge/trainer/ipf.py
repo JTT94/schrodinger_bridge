@@ -68,14 +68,18 @@ class IPF(torch.nn.Module):
         else:
             self.loop_order = ['forward', 'backward']
 
+        self.init_model_checkpoints = {'forward': self.args.start_model_checkpoint_forward, 
+                                       'backward': self.args.start_model_checkpoint_backward}
+
     def ipf_loop(self):
+        start_direction = 'backward' if self.args.start_backward else 'forward'
         for i in range(self.args.ipf_start, self.n_ipf):
             for train_direction in self.loop_order:
                 if dist.get_rank() == 0:
                     print('IPF {0}. Train Direction {1}'.format(i, train_direction))
 
 
-                if (i == 0) & (train_direction=='backward'):
+                if (i == 0) & (start_direction=='backward'):
                     
                     if self.args.fast_sampling:
                         cache = False
@@ -136,23 +140,26 @@ class IPF(torch.nn.Module):
                         bf.makedirs(plot_dir)
 
                 # find latest model and directory
+                
                 if train_direction == 'forward':
-                    prev_sample_dir =  os.path.join(self.out_dir, 'backward', str(i), 'checkpoints')
+                    adjust = 1 if self.args.start_backward else 0
+                    prev_sample_dir =  os.path.join(self.out_dir, 'backward', str(i-adjust), 'checkpoints')
                     prev_model_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
                 else:
-                    prev_sample_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
+                    adjust = 0 if self.args.start_backward else 1
+                    prev_sample_dir = os.path.join(self.out_dir, 'forward', str(i-1+adjust), 'checkpoints')
                     prev_model_dir = os.path.join(self.out_dir, 'backward', str(i-1), 'checkpoints')
 
                 # get model, to train                
-                start_direction = 'backward' if self.args.start_backward else 'forward'
-                if (self.args.start_model_checkpoint != "None") & (i==self.args.ipf_start) & (start_direction==train_direction):
+                
+                if (self.init_model_checkpoints[train_direction] != "None") & (i==self.args.ipf_start): # & (start_direction==train_direction):
                     if dist.get_rank() == 0:
                         print("Loaded model from config checkpoint")
-                    model = self.load_model_from_checkpoint(self.args.start_model_checkpoint)
+                    model = self.load_model_from_checkpoint(self.init_model_checkpoints[train_direction])
                 elif i > self.args.ipf_start:
                     if dist.get_rank() == 0:
                         print("Loaded model from checkpoint")
-                    file_path = self.find_last_checkpoint(prev_model_dir)
+                    file_path = self.find_last_checkpoint(prev_model_dir, ema=False)
                     model = self.load_model_from_checkpoint(file_path)
                 else:
                     if dist.get_rank() == 0:
@@ -161,7 +168,7 @@ class IPF(torch.nn.Module):
                 model.to(dist_util.dev())
 
                 # model to sample from
-                if (i == 0) & (train_direction == 'backward'):
+                if (i == 0) & (start_direction == 'backward'):
                     if dist.get_rank() == 0:
                         print("No sample model")
                     sample_model = None
@@ -211,8 +218,12 @@ class IPF(torch.nn.Module):
         rate = 0
         for fn in checkpoints:
             if tag in fn:
-                current_step = int(fn.split('_')[-1].split('.')[0])
-                current_rate = int(fn.split('_')[1].split('.')[0])
+                if tag == 'ema_':
+                    current_step = int(fn.split('_')[-1].split('.')[0])
+                    current_rate = int(fn.split('_')[1].split('.')[0])
+                else:
+                    current_step = int(fn.strip('model').split('.')[0])
+
                 if current_step > step:
                     filename = fn
 

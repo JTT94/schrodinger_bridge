@@ -93,7 +93,8 @@ class IPFStep(IPFStepBase):
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
             self.save()
-            torch.save(self.model, os.path.join(self.checkpoint_dir, 'final_model.pt'))
+            # if dist.get_rank() == 0:
+            #     torch.save(self.model, os.path.join(self.checkpoint_dir, 'final_model.pt'))
             zero_grad(self.master_params)
             if self.cache_loader:
                 cache_ds.deconstruct()
