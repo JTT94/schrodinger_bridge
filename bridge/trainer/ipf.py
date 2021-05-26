@@ -70,24 +70,10 @@ class IPF(torch.nn.Module):
 
     def ipf_loop(self):
         for i in range(self.args.ipf_start, self.n_ipf):
-            for train_direction in ['backward', 'forward']:
-
-
-
-                checkpoint_dir = os.path.join(self.out_dir, train_direction, str(i), 'checkpoints')
-                plot_dir = os.path.join(self.out_dir, train_direction, str(i), 'im')
+            for train_direction in self.loop_order:
                 if dist.get_rank() == 0:
-                    if not os.path.exists(checkpoint_dir):
-                        bf.makedirs(checkpoint_dir)
-                    if not os.path.exists(plot_dir):
-                        bf.makedirs(plot_dir)
+                    print('IPF {0}. Train Direction {1}'.format(i, train_direction))
 
-                if train_direction == 'forward':
-                    prev_sample_dir =  os.path.join(self.out_dir, 'backward', str(i), 'checkpoints')
-                    prev_model_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
-                else:
-                    prev_sample_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
-                    prev_model_dir = os.path.join(self.out_dir, 'backward', str(i-1), 'checkpoints')
 
                 if (i == 0) & (train_direction=='backward'):
                     
@@ -129,6 +115,7 @@ class IPF(torch.nn.Module):
                                         time_sampler=self.time_sampler, 
                                         device = dist_util.dev()
                                         )
+
                 if train_direction == 'backward':
                     cache_data_loader = self.cache_data_loader
                     data_loader = self.data_loader
@@ -139,39 +126,60 @@ class IPF(torch.nn.Module):
                     cache_data_loader = self.cache_prior_loader
                     prior_loader = self.data_loader
 
-                # get model, to train
-                if (i == 0) & (train_direction == 'backward'):
-                    model = get_model(self.args)
-                    model.to(dist_util.dev())
-                
-                if ("start_checkpoint" in self.args) & (i==self.args.ipf_start):
-                    model = get_model(self.args)
-                    model.load_state_dict(
-                            dist_util.load_state_dict(self.args.start_checkpoint, map_location="cpu")
-                        )
-                    model.to(dist_util.dev())
+                # to put current run
+                checkpoint_dir = os.path.join(self.out_dir, train_direction, str(i), 'checkpoints')
+                plot_dir = os.path.join(self.out_dir, train_direction, str(i), 'im')
+                if dist.get_rank() == 0:
+                    if not os.path.exists(checkpoint_dir):
+                        bf.makedirs(checkpoint_dir)
+                    if not os.path.exists(plot_dir):
+                        bf.makedirs(plot_dir)
 
-                
-                if i > self.args.ipf_start:
+                # find latest model and directory
+                if train_direction == 'forward':
+                    prev_sample_dir =  os.path.join(self.out_dir, 'backward', str(i), 'checkpoints')
+                    prev_model_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
+                else:
+                    prev_sample_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
+                    prev_model_dir = os.path.join(self.out_dir, 'backward', str(i-1), 'checkpoints')
+
+                # get model, to train                
+                start_direction = 'backward' if self.args.start_backward else 'forward'
+                if (self.args.start_model_checkpoint != "None") & (i==self.args.ipf_start) & (start_direction==train_direction):
+                    if dist.get_rank() == 0:
+                        print("Loaded model from config checkpoint")
+                    model = self.load_model_from_checkpoint(self.args.start_model_checkpoint)
+                elif i > self.args.ipf_start:
+                    if dist.get_rank() == 0:
+                        print("Loaded model from checkpoint")
                     file_path = self.find_last_checkpoint(prev_model_dir)
+                    model = self.load_model_from_checkpoint(file_path)
+                else:
+                    if dist.get_rank() == 0:
+                        print("Created new model")
                     model = get_model(self.args)
-                    model.load_state_dict(
-                            dist_util.load_state_dict(file_path, map_location="cpu")
-                        )
-
+                model.to(dist_util.dev())
 
                 # model to sample from
                 if (i == 0) & (train_direction == 'backward'):
+                    if dist.get_rank() == 0:
+                        print("No sample model")
                     sample_model = None
+                elif (i==self.args.ipf_start) & (self.args.start_sample_checkpoint != "None") & (start_direction==train_direction):
+                    if dist.get_rank() == 0:
+                        print("Loaded sample model from config checkpoint")
+                    sample_model = self.load_model_from_checkpoint(self.args.start_sample_checkpoint)
                 else:
+                    if dist.get_rank() == 0:
+                        print("Loaded sample model from checkpoint")
                     file_path = self.find_last_checkpoint(prev_sample_dir)
-                    sample_model = get_model(self.args)
-                    sample_model.load_state_dict(
-                            dist_util.load_state_dict(file_path, map_location="cpu")
-                        )
+                    sample_model = self.load_model_from_checkpoint(file_path)
+                
+                
+                if sample_model is not None:
+                    sample_model.to(dist_util.dev())
                     for param in sample_model.parameters():
                         param.requires_grad = False
-                    sample_model.to(dist_util.dev())
 
                 
 
@@ -211,3 +219,9 @@ class IPF(torch.nn.Module):
         path = os.path.join(checkpoint_directory, filename)
         return path
 
+    def load_model_from_checkpoint(self, checkpoint_fp):
+        model = get_model(self.args)
+        model.load_state_dict(
+                            dist_util.load_state_dict(checkpoint_fp, map_location="cpu")
+                        )
+        return model
