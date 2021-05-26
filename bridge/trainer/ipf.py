@@ -142,7 +142,7 @@ class IPF(torch.nn.Module):
                 # find latest model and directory
                 
                 if train_direction == 'forward':
-                    adjust = 1 if self.args.start_backward else 0
+                    adjust = 0 if self.args.start_backward else 1
                     prev_sample_dir =  os.path.join(self.out_dir, 'backward', str(i-adjust), 'checkpoints')
                     prev_model_dir = os.path.join(self.out_dir, 'forward', str(i-1), 'checkpoints')
                 else:

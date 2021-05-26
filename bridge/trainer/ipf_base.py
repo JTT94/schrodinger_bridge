@@ -172,6 +172,7 @@ class IPFStepBase(th.nn.Module):
 
     def save(self):
         if dist.get_rank() == 0:
+            self.set_seed(0)
             init_samples, labels = next(self.prior_loader)
             init_samples = init_samples.to(dist_util.dev())
             labels = labels.to(dist_util.dev()) if labels is not None else None
@@ -186,6 +187,14 @@ class IPFStepBase(th.nn.Module):
                 self.plotter.plot(init_samples, x_tot_plot, filename)
             sample_model = None
             torch.cuda.empty_cache()
+
+            init_samples, labels = next(self.data_loader)
+            init_samples = init_samples.to(dist_util.dev())
+            labels = labels.to(dist_util.dev()) if labels is not None else None
+            x_tot_plot = self.forward_diffusion.sample(init_samples, labels, t_batch=None, net=self.forward_model)
+            filename = 'sample{0}_step{1}.png'.format(rate, self.step)
+            self.plotter.plot(init_samples, x_tot_plot, filename)
+            
         def save_checkpoint(rate, params):
 
             state_dict = self._master_params_to_state_dict(params)
