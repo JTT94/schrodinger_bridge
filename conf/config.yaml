@@ -11,7 +11,7 @@ defaults:
 # data
 
 #data_dir:  /data/greyostrich/oxwasp/oxwasp18/thornton/20-schrodinger/data/
-data_dir: /home/james/schrodinger_bridge/data/
+data_dir: /home/thornton/schrodinger_bridge/data/
 #data_dir: /home/thornton/20-schrodinger/data/
 
 # logging
@@ -34,7 +34,7 @@ transfer: False
 out_dir: output
 t_batch: 32
 start_backward: True
-start_model_checkpoint_forward: /home/james/schrodinger_bridge/scripts/experiments/2021-05-26/main/batch_size=32,cache_npar=128,cache_refresh_stride=100,model.num_channels=64,nit=150,num_iter=10000,start_backward=False/18-12-22/output/forward/1/checkpoints/model010000.pt
-start_model_checkpoint_backward: /home/james/schrodinger_bridge/scripts/experiments/2021-05-26/main/batch_size=32,cache_npar=128,cache_refresh_stride=100,model.num_channels=64,nit=150,num_iter=10000,start_backward=False/18-12-22/output/backward/1/checkpoints/model010000.pt
-start_sample_checkpoint: /home/james/schrodinger_bridge/scripts/experiments/2021-05-26/main/batch_size=32,cache_npar=128,cache_refresh_stride=100,model.num_channels=64,nit=150,num_iter=10000,start_backward=False/18-12-22/output/backward/1/checkpoints/ema_0.999_010000.pt
-ipf_start: 2
+start_model_checkpoint_forward: None # /home/james/schrodinger_bridge/scripts/experiments/2021-05-26/main/batch_size=32,cache_npar=128,cache_refresh_stride=100,model.num_channels=64,nit=150,num_iter=10000,start_backward=False/18-12-22/output/forward/1/checkpoints/model010000.pt
+start_model_checkpoint_backward: /home/thornton/schrodinger_bridge/scripts/experiments/2021-05-27/main/batch_size=32,cache_npar=128,cache_refresh_stride=100,data.image_size=64,model.num_channels=128,nit=200,num_iter=200000,start_backward=True/16-10-32/output/backward/0/checkpoints/model050000.pt
+start_sample_checkpoint: /home/thornton/schrodinger_bridge/scripts/experiments/2021-05-27/main/batch_size=32,cache_npar=128,cache_refresh_stride=100,data.image_size=64,model.num_channels=128,nit=200,num_iter=200000,start_backward=True/16-10-32/output/backward/0/checkpoints/ema_0.999_050000.pt
+ipf_start: 0

@@ -48,7 +48,7 @@ n_ipf: 20
 lr: 0.0001
 gamma_max: 0.1
 gamma_min: 0.00001
-gamma_space: linspace
+gamma_space: geomspace
 weight_distrib: False
 weight_distrib_alpha: 100
 corrector: False
